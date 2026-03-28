@@ -1,0 +1,1220 @@
+import random
+import requests
+from datetime import datetime, timedelta, UTC
+from typing import Dict, List, Any
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+
+API_ANAHTARI = "1xkM1eCwMelanyaq6CVwblXJD8cMgAiQKHrgFI7y"
+TEMEL_URL = "https://api.nasa.gov/DONKI"
+
+PROJE_ALT_BASLIK = "Gerçek zamanlı uzay hava durumu tabanlı adaptif radyasyon koruma sistemi"
+AKIS_METNI = "NASA Verisi → Risk Analizi → Karar Motoru → Uydu Tepkisi → Radyasyon Azaltımı"
+
+
+def donki_verisi_cek(olay_tipi: str, baslangic_tarihi: str, bitis_tarihi: str) -> List[Dict[str, Any]]:
+    url = f"{TEMEL_URL}/{olay_tipi}"
+    parametreler = {
+        "startDate": baslangic_tarihi,
+        "endDate": bitis_tarihi,
+        "api_key": API_ANAHTARI
+    }
+
+    try:
+        cevap = requests.get(url, params=parametreler, timeout=20)
+        cevap.raise_for_status()
+        veri = cevap.json()
+        return veri if isinstance(veri, list) else []
+    except requests.RequestException as hata:
+        raise RuntimeError(f"{olay_tipi} verisi alınamadı: {hata}") from hata
+    except ValueError as hata:
+        raise RuntimeError(f"{olay_tipi} verisi çözümlenemedi: {hata}") from hata
+
+
+def gunes_patlamasi_skoru_hesapla(gunes_patlamalari: List[Dict[str, Any]]) -> float:
+    toplam_skor = 0.0
+
+    for olay in gunes_patlamalari:
+        sinif_tipi = olay.get("classType", "")
+        if not sinif_tipi:
+            continue
+
+        try:
+            patlama_sinifi = sinif_tipi[0].upper()
+            buyukluk = float(sinif_tipi[1:]) if len(sinif_tipi) > 1 else 1.0
+        except (ValueError, IndexError):
+            continue
+
+        if patlama_sinifi == "C":
+            toplam_skor += 1.0 * buyukluk
+        elif patlama_sinifi == "M":
+            toplam_skor += 5.0 * buyukluk
+        elif patlama_sinifi == "X":
+            toplam_skor += 12.0 * buyukluk
+
+    return toplam_skor
+
+
+def koronal_kutle_atimi_skoru_hesapla(koronal_kutle_atimlari: List[Dict[str, Any]]) -> float:
+    toplam_skor = 0.0
+
+    for olay in koronal_kutle_atimlari:
+        analizler = olay.get("cmeAnalyses", [])
+
+        if not analizler:
+            toplam_skor += 3.0
+            continue
+
+        en_yuksek_hiz_skoru = 0.0
+
+        for analiz in analizler:
+            hiz = analiz.get("speed")
+
+            if isinstance(hiz, (int, float)):
+                if hiz < 500:
+                    skor = 2.0
+                elif hiz < 1000:
+                    skor = 5.0
+                elif hiz < 2000:
+                    skor = 9.0
+                elif hiz < 3000:
+                    skor = 14.0
+                else:
+                    skor = 18.0
+
+                en_yuksek_hiz_skoru = max(en_yuksek_hiz_skoru, skor)
+
+        toplam_skor += en_yuksek_hiz_skoru if en_yuksek_hiz_skoru > 0 else 3.0
+
+    return toplam_skor
+
+
+def enerjik_parcacik_skoru_hesapla(enerjik_parcacik_olaylari: List[Dict[str, Any]]) -> float:
+    toplam_skor = 0.0
+
+    for olay in enerjik_parcacik_olaylari:
+        cihazlar = olay.get("instruments", [])
+        temel_skor = 10.0
+
+        if len(cihazlar) >= 2:
+            temel_skor += 2.0
+        if len(cihazlar) >= 4:
+            temel_skor += 4.0
+
+        toplam_skor += temel_skor
+
+    return toplam_skor
+
+
+def risk_seviyesi_belirle(toplam_risk_skoru: float) -> str:
+    if toplam_risk_skoru < 10:
+        return "NORMAL"
+    elif toplam_risk_skoru < 25:
+        return "UYARI"
+    return "GÜVENLİ MOD"
+
+
+def risk_seviyesi_aciklamasi(risk_seviyesi: str) -> str:
+    if risk_seviyesi == "NORMAL":
+        return "Düşük Risk"
+    if risk_seviyesi == "UYARI":
+        return "Orta Risk"
+    return "Yüksek Risk"
+
+
+def operasyon_mesaji_olustur(risk_seviyesi: str) -> str:
+    if risk_seviyesi == "NORMAL":
+        return "OTONOM KARAR: NORMAL GÖREV OPERASYONU"
+    if risk_seviyesi == "UYARI":
+        return "OTONOM KARAR: KORUMALI OPERASYON AKTİF"
+    return "OTONOM KARAR: GÜVENLİ MOD AKTİF"
+
+
+def uydu_tepki_plani_olustur(
+    risk_seviyesi: str,
+    simulasyon_aktif: bool = False,
+    simulasyon_seviyesi: int = 0
+) -> Dict[str, str]:
+
+    if simulasyon_aktif:
+        if simulasyon_seviyesi == 5:
+            return {
+                "Çalışma Modu": "Tam Acil Koruma Modu",
+                "Haberleşme": "Sadece Kritik Telemetri Paketi",
+                "Yararlı Yük": "Tamamen Kapatıldı",
+                "Bellek Koruması": "Salt-Okunur Çekirdek Koruma",
+                "Kalkan Durumu": "En Yüksek Yerel Koruma",
+                "Güç Yönetimi": "%70 Azaltıldı",
+                "CPU Frekansı": "Ultra Düşük Güç",
+                "Kalkan Açısı": "Tehdit Eksenine Kilitlendi"
+            }
+
+        if simulasyon_seviyesi == 4:
+            return {
+                "Çalışma Modu": "Ağır Güvenli Mod",
+                "Haberleşme": "Sınırlı Acil Durum Telemetrisi",
+                "Yararlı Yük": "Kritik Dışı Tüm Sistemler Kapalı",
+                "Bellek Koruması": "İleri Seviye ECC + İzolasyon",
+                "Kalkan Durumu": "Tam Adaptif Kalkan",
+                "Güç Yönetimi": "%60 Azaltıldı",
+                "CPU Frekansı": "Çok Düşük Güç",
+                "Kalkan Açısı": "Yoğun Tehdit Yönüne Hizalandı"
+            }
+
+        if simulasyon_seviyesi == 3:
+            return {
+                "Çalışma Modu": "Kritik Güvenli Mod",
+                "Haberleşme": "Yalnızca Acil Durum Telemetrisi",
+                "Yararlı Yük": "Tamamen Devre Dışı",
+                "Bellek Koruması": "Çekirdek Sistemler İzole Edildi",
+                "Kalkan Durumu": "Maksimum Yerel Koruma",
+                "Güç Yönetimi": "%55 Azaltıldı",
+                "CPU Frekansı": "Minimum Güç Modu",
+                "Kalkan Açısı": "Tehdit Yönüne Tam Hizalama"
+            }
+
+        if simulasyon_seviyesi == 2:
+            return {
+                "Çalışma Modu": "Koruyucu Operasyon Modu",
+                "Haberleşme": "Azaltılmış Bant Genişliği",
+                "Yararlı Yük": "Kritik Olmayan Alt Sistemler Kapalı",
+                "Bellek Koruması": "Gelişmiş ECC + Yazma Kilidi",
+                "Kalkan Durumu": "Uyarlanabilir Koruma Aktif",
+                "Güç Yönetimi": "%30 Azaltıldı",
+                "CPU Frekansı": "Kısmi Throttle",
+                "Kalkan Açısı": "Tehdit Yönüne Döndürüldü"
+            }
+
+        if simulasyon_seviyesi == 1:
+            return {
+                "Çalışma Modu": "Dikkatli Görev Operasyonu",
+                "Haberleşme": "Normal / İzlemeli",
+                "Yararlı Yük": "Tam Kapasite Aktif",
+                "Bellek Koruması": "Standart ECC + Hata İzleme",
+                "Kalkan Durumu": "Hazır Bekleme",
+                "Güç Yönetimi": "%10 Azaltıldı",
+                "CPU Frekansı": "Nominal",
+                "Kalkan Açısı": "Standart Konum"
+            }
+
+    if risk_seviyesi == "NORMAL":
+        return {
+            "Çalışma Modu": "Nominal Görev Operasyonu",
+            "Haberleşme": "Tam Haberleşme Aktif",
+            "Yararlı Yük": "Tam Kapasite Aktif",
+            "Bellek Koruması": "Standart ECC Koruması",
+            "Kalkan Durumu": "Pasif Kalkan Yeterli",
+            "Güç Yönetimi": "Nominal Tüketim",
+            "CPU Frekansı": "Tam Performans",
+            "Kalkan Açısı": "Standart Konum"
+        }
+    elif risk_seviyesi == "UYARI":
+        return {
+            "Çalışma Modu": "Koruyucu Operasyon Modu",
+            "Haberleşme": "Azaltılmış Bant Genişliği",
+            "Yararlı Yük": "Sınırlı Çalışma",
+            "Bellek Koruması": "Gelişmiş ECC + Yazma Koruması",
+            "Kalkan Durumu": "Uyarlanabilir Koruma Aktif",
+            "Güç Yönetimi": "%25 Azaltıldı",
+            "CPU Frekansı": "Kısmi Throttle",
+            "Kalkan Açısı": "Tehdit Yönüne Döndürüldü"
+        }
+    else:
+        return {
+            "Çalışma Modu": "Güvenli Mod",
+            "Haberleşme": "Yalnızca Acil Durum Telemetrisi",
+            "Yararlı Yük": "Devre Dışı",
+            "Bellek Koruması": "Kritik Sistemler İzole Edildi",
+            "Kalkan Durumu": "Maksimum Yerel Koruma",
+            "Güç Yönetimi": "%40 Azaltıldı",
+            "CPU Frekansı": "Düşük Güç Modu",
+            "Kalkan Açısı": "Maksimum Koruma Açısı"
+        }
+
+
+def onerilen_aksiyon_olustur(
+    risk_seviyesi: str,
+    simulasyon_aktif: bool = False,
+    simulasyon_seviyesi: int = 0
+) -> str:
+    if simulasyon_aktif:
+        if simulasyon_seviyesi == 5:
+            return "Önerilen Aksiyon: Tüm payloadları kapat, sistemi acil korumaya al, sadece kritik telemetriyi açık tut"
+        if simulasyon_seviyesi == 4:
+            return "Önerilen Aksiyon: Kritik dışı sistemleri tamamen kapat, kalkanı maksimum adaptif moda al, güç tüketimini sert düşür"
+        if simulasyon_seviyesi == 3:
+            return "Önerilen Aksiyon: Payload kapat, safe mode'a geç, yalnızca acil telemetriyi açık tut"
+        if simulasyon_seviyesi == 2:
+            return "Önerilen Aksiyon: Güç tüketimini düşür, bant genişliğini azalt, kritik olmayan sistemleri kapat"
+        if simulasyon_seviyesi == 1:
+            return "Önerilen Aksiyon: İzlemeyi artır, sistemleri hazır beklemede tut, koruma prosedürlerini hazırlıklı tut"
+
+    if risk_seviyesi == "NORMAL":
+        return "Önerilen Aksiyon: Normal görev operasyonuna devam et"
+
+    if risk_seviyesi == "UYARI":
+        return "Önerilen Aksiyon: Koruyucu moda geç, yazma korumasını artır, haberleşmeyi sınırla"
+
+    return "Önerilen Aksiyon: Güvenli moda geç, yararlı yükü kapat, maksimum korumayı etkinleştir"
+
+
+def kutu_rengi_skor(skor: float, olay_tipi: str) -> str:
+    if olay_tipi == "genel":
+        if skor < 10:
+            return "#b9f6ca"
+        elif skor < 25:
+            return "#fff59d"
+        return "#ff8a80"
+
+    if olay_tipi == "gunes_patlamasi":
+        if skor < 5:
+            return "#b9f6ca"
+        elif skor < 15:
+            return "#fff59d"
+        return "#ff8a80"
+
+    if olay_tipi == "koronal_kutle_atimi":
+        if skor < 5:
+            return "#b9f6ca"
+        elif skor < 10:
+            return "#fff59d"
+        return "#ff8a80"
+
+    if olay_tipi == "enerjik_parcacik":
+        if skor < 10:
+            return "#b9f6ca"
+        elif skor < 20:
+            return "#fff59d"
+        return "#ff8a80"
+
+    return "#e0e0e0"
+
+
+def simule_flr_verisi(seviye: int) -> List[Dict[str, Any]]:
+    if seviye == 1:
+        secenekler = ["C4.8", "M1.2", "M2.3"]
+        adet = random.randint(1, 3)
+    elif seviye == 2:
+        secenekler = ["M3.5", "M5.8", "X1.1", "X1.4"]
+        adet = random.randint(2, 4)
+    elif seviye == 3:
+        secenekler = ["X2.5", "X4.1", "X6.3", "X9.0"]
+        adet = random.randint(3, 6)
+    elif seviye == 4:
+        secenekler = ["X8.4", "X10.0", "X12.7", "X15.2"]
+        adet = random.randint(5, 8)
+    else:
+        secenekler = ["X15.0", "X18.5", "X22.0", "X28.0"]
+        adet = random.randint(7, 10)
+
+    return [{"classType": random.choice(secenekler)} for _ in range(adet)]
+
+
+def simule_cme_verisi(seviye: int) -> List[Dict[str, Any]]:
+    if seviye == 1:
+        hiz_araligi = (500, 900)
+        adet = random.randint(1, 2)
+    elif seviye == 2:
+        hiz_araligi = (1000, 1800)
+        adet = random.randint(2, 4)
+    elif seviye == 3:
+        hiz_araligi = (1800, 2800)
+        adet = random.randint(3, 5)
+    elif seviye == 4:
+        hiz_araligi = (2800, 3800)
+        adet = random.randint(4, 6)
+    else:
+        hiz_araligi = (3800, 5000)
+        adet = random.randint(5, 8)
+
+    veriler = []
+    for _ in range(adet):
+        hiz = round(random.uniform(*hiz_araligi), 1)
+        veriler.append({
+            "cmeAnalyses": [{"speed": hiz}]
+        })
+    return veriler
+
+
+def simule_sep_verisi(seviye: int) -> List[Dict[str, Any]]:
+    if seviye == 1:
+        adet = random.randint(0, 1)
+        cihaz_sayisi = [1, 2]
+    elif seviye == 2:
+        adet = random.randint(1, 3)
+        cihaz_sayisi = [2, 3]
+    elif seviye == 3:
+        adet = random.randint(3, 5)
+        cihaz_sayisi = [3, 4]
+    elif seviye == 4:
+        adet = random.randint(4, 6)
+        cihaz_sayisi = [4, 5]
+    else:
+        adet = random.randint(6, 9)
+        cihaz_sayisi = [5, 6]
+
+    veriler = []
+    for _ in range(adet):
+        sayi = random.choice(cihaz_sayisi)
+        veriler.append({
+            "instruments": [{"displayName": f"SIM-{i+1}"} for i in range(sayi)]
+        })
+    return veriler
+
+
+def simule_storm_senaryosu(seviye: int) -> Dict[str, Any]:
+    flr = simule_flr_verisi(seviye)
+    cme = simule_cme_verisi(seviye)
+    sep = simule_sep_verisi(seviye)
+
+    senaryo_haritasi = {
+        1: ("LEVEL 1 STORM", "Hafif-orta uzay hava durumu bozulması"),
+        2: ("LEVEL 2 STORM", "Yüksek radyasyon ve operasyonel kısıtlama riski"),
+        3: ("LEVEL 3 STORM", "Kritik güneş fırtınası / görev güvenliği tehdidi"),
+        4: ("LEVEL 4 STORM", "Ağır radyasyon baskısı / geniş sistem koruması gerekli"),
+        5: ("LEVEL 5 STORM", "Aşırı güneş fırtınası / görev sürekliliği ciddi tehlikede"),
+    }
+
+    senaryo_adi, aciklama = senaryo_haritasi.get(
+        seviye,
+        ("LEVEL 1 STORM", "Hafif-orta uzay hava durumu bozulması")
+    )
+
+    return {
+        "seviye": seviye,
+        "senaryo_adi": senaryo_adi,
+        "aciklama": aciklama,
+        "flr": flr,
+        "cme": cme,
+        "sep": sep
+    }
+
+
+def kisa_vadeli_tahmin_yap(risk_gecmisi: List[float]) -> str:
+    if len(risk_gecmisi) < 3:
+        return "Yetersiz veri"
+
+    son = risk_gecmisi[-1]
+    onceki = risk_gecmisi[-3]
+    fark = son - onceki
+
+    if fark > 20:
+        return "Risk çok hızlı artıyor"
+    elif fark > 8:
+        return "Risk hızla artıyor"
+    elif fark > 2:
+        return "Risk artış eğiliminde"
+    elif fark < -20:
+        return "Risk çok hızlı düşüyor"
+    elif fark < -8:
+        return "Risk hızla düşüyor"
+    elif fark < -2:
+        return "Risk düşüş eğiliminde"
+    return "Risk kararlı"
+
+
+def karar_guveni_hesapla(toplam_risk: float, simulasyon_aktif: bool) -> float:
+    temel = min(94.0, 45.0 + toplam_risk * 1.2)
+    if simulasyon_aktif:
+        temel -= 6.0
+    return max(35.0, min(97.0, temel))
+
+
+class RadyasyonArayuzu:
+    def __init__(self, pencere: tk.Tk):
+        self.pencere = pencere
+        self.pencere.title("ASTRO TURKS | Adaptif Uydu Radyasyon Karar Paneli")
+        self.pencere.geometry("1920x1080")
+        self.pencere.minsize(1600, 900)
+        self.pencere.configure(bg="#0f172a")
+
+        self.stil = ttk.Style()
+        self.stil.theme_use("clam")
+
+        self.ust_bilgi_metin = tk.StringVar(value="Son 7 Gün Verisi")
+        self.toplam_risk_metin = tk.StringVar(value="Toplam Radyasyon Riski: -")
+        self.risk_seviyesi_metin = tk.StringVar(value="Operasyon Durumu: -")
+        self.son_guncelleme_metin = tk.StringVar(value="Son Güncelleme: -")
+        self.canli_grafik_metin = tk.StringVar(value="Canlı Grafik: Açık")
+        self.simulasyon_metin = tk.StringVar(value="Simulation Mode: Kapalı")
+        self.karar_motoru_metin = tk.StringVar(value="Karar Motoru: Veri Bekleniyor")
+        self.trend_metin = tk.StringVar(value="Trend Analizi: Bekleniyor")
+        self.simulasyon_seviyesi_metin = tk.StringVar(value="Simülasyon Senaryosu: Gerçek Veri")
+
+        self.tahmin_metin = tk.StringVar(value="Kısa Vadeli Tahmin: -")
+        self.karar_guven_metin = tk.StringVar(value="Karar Güveni: -")
+        self.onerilen_aksiyon_metin = tk.StringVar(value="Önerilen Aksiyon: -")
+
+        self.risk_gecmisi = []
+        self.zaman_gecmisi = []
+
+        self.kartlar = {}
+        self.tepki_etiketleri = {}
+
+        self.otomatik_yenileme_acik = True
+        self.simulasyon_modu_acik = False
+        self.yenileme_araligi_ms = 10000
+        self.simulasyon_seviyesi = 1
+        self.alarm_durumu_acik = False
+
+        self._arayuzu_kur()
+        self.verileri_yenile(otomatik=False)
+        self.otomatik_yenilemeyi_baslat()
+
+    def olay_gunlugune_ekle(self, mesaj: str) -> None:
+        zaman = datetime.now(UTC).strftime("%H:%M:%S")
+        self.olay_gunlugu.configure(state="normal")
+        self.olay_gunlugu.insert("end", f"[{zaman}] {mesaj}\n")
+        self.olay_gunlugu.see("end")
+        self.olay_gunlugu.configure(state="disabled")
+
+    def _kart_olustur(self, ebeveyn, baslik: str):
+        dis_cerceve = tk.Frame(
+            ebeveyn,
+            bg="#1e293b",
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=6
+        )
+
+        baslik_etiketi = tk.Label(
+            dis_cerceve,
+            text=baslik,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="white",
+            justify="left",
+            wraplength=185,
+            anchor="w"
+        )
+        baslik_etiketi.pack(anchor="w", fill="x")
+
+        deger_etiketi = tk.Label(
+            dis_cerceve,
+            text="-",
+            font=("Arial", 9, "bold"),
+            bg="#334155",
+            fg="black",
+            width=20,
+            height=4,
+            justify="center",
+            wraplength=185
+        )
+        deger_etiketi.pack(fill="both", expand=True, pady=(6, 0))
+
+        return dis_cerceve, deger_etiketi
+
+    def _arayuzu_kur(self):
+        ana = tk.Frame(self.pencere, bg="#0f172a")
+        ana.pack(fill="both", expand=True, padx=10, pady=10)
+        self.ana_panel = ana
+
+        ana.grid_columnconfigure(0, weight=3)
+        ana.grid_columnconfigure(1, weight=2)
+        ana.grid_rowconfigure(1, weight=2)
+        ana.grid_rowconfigure(2, weight=2)
+        ana.grid_rowconfigure(3, weight=1)
+
+        ust = tk.Frame(ana, bg="#1e293b", padx=8, pady=8)
+        ust.grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
+        self.ust_panel = ust
+
+        tk.Label(
+            ust,
+            text="ASTRO TURKS | Adaptif Uydu Radyasyon Karar Paneli",
+            font=("Arial", 8, "bold"),
+            bg="#1e293b",
+            fg="white",
+            anchor="w",
+            justify="left",
+            wraplength=300
+        ).grid(row=0, column=0, sticky="w", padx=(0, 8))
+
+        tk.Label(
+            ust,
+            text=PROJE_ALT_BASLIK,
+            font=("Arial", 6),
+            bg="#1e293b",
+            fg="#93c5fd",
+            anchor="w",
+            justify="left",
+            wraplength=300
+        ).grid(row=1, column=0, sticky="w")
+
+        tk.Label(
+            ust,
+            textvariable=self.ust_bilgi_metin,
+            font=("Arial", 6),
+            bg="#1e293b",
+            fg="#cbd5e1"
+        ).grid(row=2, column=0, sticky="w", pady=(3, 0))
+
+        tk.Label(
+            ust,
+            textvariable=self.toplam_risk_metin,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="#e2e8f0"
+        ).grid(row=0, column=1, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.risk_seviyesi_metin,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="#e2e8f0"
+        ).grid(row=1, column=1, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.trend_metin,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="#a7f3d0"
+        ).grid(row=0, column=2, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.son_guncelleme_metin,
+            font=("Arial", 7),
+            bg="#1e293b",
+            fg="#cbd5e1"
+        ).grid(row=1, column=2, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.karar_motoru_metin,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="#fbbf24"
+        ).grid(row=2, column=1, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.simulasyon_seviyesi_metin,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="#fca5a5"
+        ).grid(row=2, column=2, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            text=AKIS_METNI,
+            font=("Arial", 7),
+            bg="#1e293b",
+            fg="#94a3b8",
+            wraplength=170,
+            justify="left"
+        ).grid(row=0, column=3, rowspan=3, sticky="w", padx=8)
+
+        yenile_dugmesi = tk.Button(
+            ust,
+            text="Verileri Yenile",
+            font=("Arial", 8, "bold"),
+            bg="#e5e7eb",
+            fg="black",
+            relief="flat",
+            padx=8,
+            pady=5,
+            command=self.verileri_yenile
+        )
+        yenile_dugmesi.grid(row=0, column=4, rowspan=3, sticky="e", padx=(6, 0))
+
+        canli_dugme = tk.Button(
+            ust,
+            textvariable=self.canli_grafik_metin,
+            font=("Arial", 7, "bold"),
+            bg="#e5e7eb",
+            fg="black",
+            relief="flat",
+            padx=8,
+            pady=5,
+            command=self.otomatik_yenilemeyi_degistir
+        )
+        canli_dugme.grid(row=0, column=5, rowspan=3, sticky="e", padx=(6, 0))
+
+        simulasyon_dugme = tk.Button(
+            ust,
+            textvariable=self.simulasyon_metin,
+            font=("Arial", 7, "bold"),
+            bg="#e5e7eb",
+            fg="black",
+            relief="flat",
+            padx=8,
+            pady=5,
+            command=self.simulasyon_modunu_degistir
+        )
+        simulasyon_dugme.grid(row=0, column=6, rowspan=2, sticky="e", padx=(6, 0))
+
+        self.storm_dugmesi = tk.Button(
+            ust,
+            text="Storm Seviyesi: L1",
+            font=("Arial", 7, "bold"),
+            bg="#dbeafe",
+            fg="black",
+            relief="flat",
+            padx=8,
+            pady=4,
+            command=self.simulasyon_seviyesi_degistir
+        )
+        self.storm_dugmesi.grid(row=2, column=6, sticky="e", padx=(6, 0))
+
+        tk.Label(
+            ust,
+            textvariable=self.tahmin_metin,
+            font=("Arial", 7, "bold"),
+            bg="#1e293b",
+            fg="#bfdbfe"
+        ).grid(row=0, column=7, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.karar_guven_metin,
+            font=("Arial", 5, "bold"),
+            bg="#1e293b",
+            fg="#fde68a"
+        ).grid(row=1, column=7, sticky="w", padx=8)
+
+        tk.Label(
+            ust,
+            textvariable=self.onerilen_aksiyon_metin,
+            font=("Arial", 6, "bold"),
+            bg="#1e293b",
+            fg="#fca5a5",
+            wraplength=180,
+            justify="left",
+            anchor="w"
+        ).grid(row=0, column=8, rowspan=3, sticky="w", padx=8)
+
+        self.kaydet_dugmesi = tk.Button(
+            ust,
+            text="Logları Kaydet",
+            font=("Arial", 7, "bold"),
+            bg="#d1fae5",
+            fg="black",
+            relief="flat",
+            padx=8,
+            pady=4,
+            command=self.loglari_kaydet
+        )
+        self.kaydet_dugmesi.grid(row=0, column=9, rowspan=3, sticky="e", padx=(6, 0))
+
+        ust.grid_columnconfigure(0, weight=3)
+        ust.grid_columnconfigure(1, weight=1)
+        ust.grid_columnconfigure(2, weight=1)
+        ust.grid_columnconfigure(3, weight=1)
+        ust.grid_columnconfigure(7, weight=1)
+        ust.grid_columnconfigure(8, weight=2)
+        ust.grid_columnconfigure(9, weight=0)
+
+        kart_alani = tk.Frame(ana, bg="#0f172a")
+        kart_alani.grid(row=1, column=0, sticky="nsew", padx=(0, 10), pady=(0, 10))
+
+        for col in range(4):
+            kart_alani.grid_columnconfigure(col, weight=1)
+        for row in range(2):
+            kart_alani.grid_rowconfigure(row, weight=1)
+
+        kart_basliklari = [
+            ("☀️ Güneş Patlaması (FLR)", "gunes_patlamasi"),
+            ("🌪️ Koronal Kütle Atımı (CME)", "koronal_kutle_atimi"),
+            ("⚡ Yüksek Enerjili Parçacıklar (SEP)", "enerjik_parcacik"),
+            ("📊 Toplam Radyasyon Riski", "genel"),
+            ("🧠 Risk Seviyesi", "risk_seviyesi"),
+            ("☀️ Güneş Patlaması Olay Sayısı (FLR)", "flr_olay"),
+            ("🌪️ Koronal Kütle Atımı (CME) Olay Sayısı", "cme_olay"),
+            ("⚡ Yüksek Enerjili Parçacıklar (SEP) Olay Sayısı", "sep_olay"),
+        ]
+
+        for i, (gorunen_ad, anahtar) in enumerate(kart_basliklari):
+            row = i // 4
+            col = i % 4
+            kart, deger_etiketi = self._kart_olustur(kart_alani, gorunen_ad)
+            kart.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
+            self.kartlar[anahtar] = deger_etiketi
+
+        tepki_alani = tk.Frame(ana, bg="#1e293b", padx=10, pady=10)
+        tepki_alani.grid(row=1, column=1, sticky="nsew", pady=(0, 10))
+
+        tk.Label(
+            tepki_alani,
+            text="Uydu Tepki Planı",
+            font=("Arial", 10, "bold"),
+            bg="#1e293b",
+            fg="white"
+        ).pack(anchor="w", pady=(0, 4))
+
+        tk.Label(
+            tepki_alani,
+            text="Bu panel yalnızca veri göstermiyor; risk analizine göre uydu davranışını değiştiriyor.",
+            font=("Arial", 7),
+            bg="#1e293b",
+            fg="#cbd5e1",
+            justify="left",
+            wraplength=320
+        ).pack(anchor="w", pady=(0, 8))
+
+        for alan in [
+            "Çalışma Modu",
+            "Haberleşme",
+            "Yararlı Yük",
+            "Bellek Koruması",
+            "Kalkan Durumu",
+            "Güç Yönetimi",
+            "CPU Frekansı",
+            "Kalkan Açısı"
+        ]:
+            satir = tk.Frame(tepki_alani, bg="#1e293b")
+            satir.pack(fill="x", pady=2)
+
+            tk.Label(
+                satir,
+                text=f"{alan}:",
+                font=("Arial", 8, "bold"),
+                bg="#1e293b",
+                fg="#cbd5e1",
+                width=15,
+                anchor="w"
+            ).pack(side="left")
+
+            deger = tk.Label(
+                satir,
+                text="-",
+                font=("Arial", 8),
+                bg="#1e293b",
+                fg="white",
+                anchor="w",
+                justify="left",
+                wraplength=200
+            )
+            deger.pack(side="left", fill="x", expand=True)
+            self.tepki_etiketleri[alan] = deger
+
+        grafik_cercevesi = tk.Frame(ana, bg="#1e293b", padx=8, pady=8)
+        grafik_cercevesi.grid(row=2, column=0, sticky="nsew", padx=(0, 10), pady=(0, 10))
+
+        tk.Label(
+            grafik_cercevesi,
+            text="Kareli Sütun Risk Grafiği",
+            font=("Arial", 10, "bold"),
+            bg="#1e293b",
+            fg="white"
+        ).pack(anchor="w")
+
+        self.fig = Figure(figsize=(9.5, 5.4), dpi=100)
+        self.eksen = self.fig.add_subplot(111)
+        self.fig.patch.set_facecolor("#1e293b")
+        self.eksen.set_facecolor("#0f172a")
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=grafik_cercevesi)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True, pady=(6, 0))
+
+        gunluk_cercevesi = tk.Frame(ana, bg="#1e293b", padx=8, pady=8)
+        gunluk_cercevesi.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(0, 10))
+
+        tk.Label(
+            gunluk_cercevesi,
+            text="Olay Günlüğü",
+            font=("Arial", 10, "bold"),
+            bg="#1e293b",
+            fg="white"
+        ).pack(anchor="w")
+
+        self.olay_gunlugu = tk.Text(
+            gunluk_cercevesi,
+            height=18,
+            bg="#0f172a",
+            fg="#e2e8f0",
+            insertbackground="white",
+            relief="flat",
+            font=("Consolas", 7),
+            state="disabled"
+        )
+        self.olay_gunlugu.pack(fill="both", expand=True, pady=(6, 0))
+
+        alt = tk.Frame(ana, bg="#1e293b", padx=10, pady=8)
+        alt.grid(row=3, column=0, sticky="nsew", padx=(0, 10))
+
+        tk.Label(
+            alt,
+            text=(
+                "NASA DONKI verileri kullanılarak uzay hava durumu analiz edilir, radyasyon riski hesaplanır, "
+                "karar motoru risk seviyesini belirler ve uydu için otomatik tepki planı oluşturulur. "
+                "Grafikte ve üst kartlarda tüm temel metrikler birlikte gösterilir."
+            ),
+            font=("Arial", 7),
+            bg="#1e293b",
+            fg="#cbd5e1",
+            justify="left",
+            wraplength=900
+        ).pack(anchor="w")
+
+    def simulasyon_seviyesi_degistir(self) -> None:
+        self.simulasyon_seviyesi += 1
+
+        if self.simulasyon_seviyesi > 5:
+            self.simulasyon_seviyesi = 1
+
+        self.storm_dugmesi.configure(text=f"Storm Seviyesi: L{self.simulasyon_seviyesi}")
+
+        self.olay_gunlugune_ekle(
+            f"Simülasyon seviyesi L{self.simulasyon_seviyesi} olarak ayarlandı."
+        )
+
+        if self.simulasyon_modu_acik:
+            self.olay_gunlugune_ekle(
+                "Yeni simülasyon seviyesi için veriler ve uydu tepki planı yenileniyor."
+            )
+            self.verileri_yenile(otomatik=False)
+
+    def simulasyon_modunu_degistir(self) -> None:
+        self.simulasyon_modu_acik = not self.simulasyon_modu_acik
+
+        if self.simulasyon_modu_acik:
+            self.simulasyon_metin.set("Simulation Mode: Açık")
+            self.olay_gunlugune_ekle("Simulation Mode açıldı.")
+            self.olay_gunlugune_ekle(
+                f"L{self.simulasyon_seviyesi} senaryosu ile sentetik uzay hava durumu üretilecek."
+            )
+        else:
+            self.simulasyon_metin.set("Simulation Mode: Kapalı")
+            self.simulasyon_seviyesi_metin.set("Simülasyon Senaryosu: Gerçek Veri")
+            self.olay_gunlugune_ekle("Simulation Mode kapatıldı.")
+
+        self.verileri_yenile(otomatik=False)
+
+    def alarm_gorselini_guncelle(self, risk_seviyesi: str) -> None:
+        if risk_seviyesi == "NORMAL":
+            self.ust_panel.configure(bg="#1e293b")
+            self.karar_motoru_metin.set("OTONOM KARAR: NORMAL GÖREV OPERASYONU")
+        elif risk_seviyesi == "UYARI":
+            self.ust_panel.configure(bg="#1e293b")
+            self.karar_motoru_metin.set("⚠ OTONOM KARAR: KORUMALI OPERASYON AKTİF")
+        else:
+            self.ust_panel.configure(bg="#0f172a")
+
+            if self.alarm_durumu_acik:
+                self.karar_motoru_metin.set("🚨 KRİTİK ALARM: GÜVENLİ MOD AKTİF")
+            else:
+                self.karar_motoru_metin.set("⛔ KRİTİK RİSK: ACİL KORUMA DEVREDE")
+
+            self.alarm_durumu_acik = not self.alarm_durumu_acik
+
+    def loglari_kaydet(self) -> None:
+        try:
+            zaman_damgasi = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+            dosya_adi = f"astro_turks_log_{zaman_damgasi}.txt"
+
+            icerik = self.olay_gunlugu.get("1.0", "end-1c")
+
+            with open(dosya_adi, "w", encoding="utf-8") as dosya:
+                dosya.write("ASTRO TURKS | Görev Logu\n")
+                dosya.write("=" * 60 + "\n")
+                dosya.write(self.toplam_risk_metin.get() + "\n")
+                dosya.write(self.risk_seviyesi_metin.get() + "\n")
+                dosya.write(self.trend_metin.get() + "\n")
+                dosya.write(self.tahmin_metin.get() + "\n")
+                dosya.write(self.karar_guven_metin.get() + "\n")
+                dosya.write(self.simulasyon_seviyesi_metin.get() + "\n")
+                dosya.write(self.onerilen_aksiyon_metin.get() + "\n")
+                dosya.write("=" * 60 + "\n\n")
+                dosya.write(icerik)
+
+            self.olay_gunlugune_ekle(f"Log dosyası kaydedildi: {dosya_adi}")
+            messagebox.showinfo("Başarılı", f"Log dosyası kaydedildi:\n{dosya_adi}")
+
+        except Exception as hata:
+            self.olay_gunlugune_ekle(f"Log kaydetme hatası: {hata}")
+            messagebox.showerror("Hata", f"Log kaydedilemedi:\n{hata}")
+
+    def grafigi_guncelle(
+        self,
+        gunes_patlamasi_skoru: float,
+        koronal_kutle_atimi_skoru: float,
+        enerjik_parcacik_skoru: float,
+        toplam_risk: float,
+        risk_seviyesi_sayisal: int,
+        gunes_olay_sayisi: int,
+        cme_olay_sayisi: int,
+        sep_olay_sayisi: int
+    ) -> None:
+        self.eksen.clear()
+
+        kategoriler = [
+            "FLR\nRisk",
+            "CME\nRisk",
+            "SEP\nRisk",
+            "Toplam\nRisk",
+            "Risk\nSeviyesi",
+            "FLR\nOlay",
+            "CME\nOlay",
+            "SEP\nOlay"
+        ]
+
+        degerler = [
+            gunes_patlamasi_skoru,
+            koronal_kutle_atimi_skoru,
+            enerjik_parcacik_skoru,
+            toplam_risk,
+            risk_seviyesi_sayisal,
+            gunes_olay_sayisi,
+            cme_olay_sayisi,
+            sep_olay_sayisi
+        ]
+
+        renkler = [
+            "#60a5fa",
+            "#f97316",
+            "#22c55e",
+            "#ef4444" if toplam_risk >= 25 else "#facc15" if toplam_risk >= 10 else "#38bdf8",
+            "#a855f7",
+            "#93c5fd",
+            "#fdba74",
+            "#86efac"
+        ]
+
+        cubuklar = self.eksen.bar(kategoriler, degerler, color=renkler, width=0.62)
+
+        self.eksen.set_title("Uzay Hava Durumu Tabanlı Radyasyon Risk Analizi", color="white", fontsize=11)
+        self.eksen.set_ylabel("Risk Skoru / Olay Sayısı / Seviye", color="white", fontsize=8)
+
+        self.eksen.tick_params(axis="x", colors="white", labelrotation=0, labelsize=8)
+        self.eksen.tick_params(axis="y", colors="white", labelsize=8)
+
+        self.eksen.spines["bottom"].set_color("white")
+        self.eksen.spines["left"].set_color("white")
+        self.eksen.spines["top"].set_color("white")
+        self.eksen.spines["right"].set_color("white")
+
+        self.eksen.grid(True, axis="y", color="#475569", alpha=0.35, linestyle="-")
+        self.eksen.set_axisbelow(True)
+
+        for cubuk, deger in zip(cubuklar, degerler):
+            self.eksen.text(
+                cubuk.get_x() + cubuk.get_width() / 2,
+                cubuk.get_height() + 0.8,
+                f"{deger:.1f}",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+                color="white",
+                fontweight="bold"
+            )
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    def otomatik_yenilemeyi_baslat(self) -> None:
+        if self.otomatik_yenileme_acik:
+            self.verileri_yenile(otomatik=True)
+
+        self.pencere.after(self.yenileme_araligi_ms, self.otomatik_yenilemeyi_baslat)
+
+    def otomatik_yenilemeyi_degistir(self) -> None:
+        self.otomatik_yenileme_acik = not self.otomatik_yenileme_acik
+
+        if self.otomatik_yenileme_acik:
+            self.canli_grafik_metin.set("Canlı Grafik: Açık")
+            self.olay_gunlugune_ekle("Otomatik yenileme açıldı.")
+        else:
+            self.canli_grafik_metin.set("Canlı Grafik: Kapalı")
+            self.olay_gunlugune_ekle("Otomatik yenileme kapatıldı.")
+
+    def verileri_yenile(self, otomatik: bool = False) -> None:
+        try:
+            if otomatik:
+                self.olay_gunlugune_ekle("Canlı grafik için otomatik veri yenileme başlatıldı.")
+            else:
+                self.olay_gunlugune_ekle("Veri yenileme başlatıldı.")
+
+            if self.simulasyon_modu_acik:
+                senaryo = simule_storm_senaryosu(self.simulasyon_seviyesi)
+
+                gunes_patlamasi_verileri = senaryo["flr"]
+                koronal_kutle_atimi_verileri = senaryo["cme"]
+                enerjik_parcacik_verileri = senaryo["sep"]
+
+                self.ust_bilgi_metin.set(f"Simulation Mode | {senaryo['senaryo_adi']}")
+                self.simulasyon_seviyesi_metin.set(
+                    f"Simülasyon Senaryosu: {senaryo['senaryo_adi']}"
+                )
+                self.olay_gunlugune_ekle(
+                    f"Simülasyon verisi üretildi: {senaryo['senaryo_adi']} | {senaryo['aciklama']}"
+                )
+            else:
+                bugun = datetime.now(UTC).date()
+                yedi_gun_once = bugun - timedelta(days=7)
+
+                baslangic = yedi_gun_once.isoformat()
+                bitis = bugun.isoformat()
+
+                self.ust_bilgi_metin.set(f"Son 7 Gün Verisi | {baslangic} → {bitis}")
+                self.simulasyon_seviyesi_metin.set("Simülasyon Senaryosu: Gerçek Veri")
+                self.olay_gunlugune_ekle("Tarih aralığı hazırlandı.")
+
+                gunes_patlamasi_verileri = donki_verisi_cek("FLR", baslangic, bitis)
+                koronal_kutle_atimi_verileri = donki_verisi_cek("CME", baslangic, bitis)
+                enerjik_parcacik_verileri = donki_verisi_cek("SEP", baslangic, bitis)
+
+            gunes_olay_sayisi = len(gunes_patlamasi_verileri)
+            cme_olay_sayisi = len(koronal_kutle_atimi_verileri)
+            sep_olay_sayisi = len(enerjik_parcacik_verileri)
+
+            self.olay_gunlugune_ekle(f"Güneş Patlaması verisi işlendi. Olay sayısı: {gunes_olay_sayisi}")
+            self.olay_gunlugune_ekle(f"Koronal Kütle Atımı verisi işlendi. Olay sayısı: {cme_olay_sayisi}")
+            self.olay_gunlugune_ekle(f"Enerjik Parçacık verisi işlendi. Olay sayısı: {sep_olay_sayisi}")
+
+            gunes_patlamasi_skoru = gunes_patlamasi_skoru_hesapla(gunes_patlamasi_verileri)
+            koronal_kutle_atimi_skoru = koronal_kutle_atimi_skoru_hesapla(koronal_kutle_atimi_verileri)
+            enerjik_parcacik_skoru = enerjik_parcacik_skoru_hesapla(enerjik_parcacik_verileri)
+
+            toplam_risk_skoru = (
+                1.2 * gunes_patlamasi_skoru +
+                1.5 * koronal_kutle_atimi_skoru +
+                2.0 * enerjik_parcacik_skoru
+            )
+
+            self.risk_gecmisi.append(toplam_risk_skoru)
+            self.zaman_gecmisi.append(datetime.now(UTC).strftime("%H:%M:%S"))
+
+            if len(self.risk_gecmisi) > 10:
+                self.risk_gecmisi.pop(0)
+                self.zaman_gecmisi.pop(0)
+
+            risk_seviyesi = risk_seviyesi_belirle(toplam_risk_skoru)
+            risk_aciklamasi = risk_seviyesi_aciklamasi(risk_seviyesi)
+            operasyon_mesaji = operasyon_mesaji_olustur(risk_seviyesi)
+
+            if risk_seviyesi == "NORMAL":
+                risk_seviyesi_sayisal = 1
+                trend_metni = "Kararlı"
+            elif risk_seviyesi == "UYARI":
+                risk_seviyesi_sayisal = 2
+                trend_metni = "Yükseliş"
+            else:
+                risk_seviyesi_sayisal = 3
+                trend_metni = "Kritik"
+
+            tahmin = kisa_vadeli_tahmin_yap(self.risk_gecmisi)
+            karar_guveni = karar_guveni_hesapla(toplam_risk_skoru, self.simulasyon_modu_acik)
+            onerilen_aksiyon = onerilen_aksiyon_olustur(
+                risk_seviyesi,
+                simulasyon_aktif=self.simulasyon_modu_acik,
+                simulasyon_seviyesi=self.simulasyon_seviyesi
+            )
+
+            uydu_tepki_plani = uydu_tepki_plani_olustur(
+                risk_seviyesi,
+                simulasyon_aktif=self.simulasyon_modu_acik,
+                simulasyon_seviyesi=self.simulasyon_seviyesi
+            )
+
+            self.olay_gunlugune_ekle("Risk skorları hesaplandı.")
+            self.olay_gunlugune_ekle(
+                f"Ağırlıklı toplam risk skoru: {toplam_risk_skoru:.2f} | "
+                f"Formül = 1.2×FLR + 1.5×CME + 2.0×SEP"
+            )
+            self.olay_gunlugune_ekle(
+                f"Risk seviyesi belirlendi: {risk_seviyesi} ({risk_seviyesi_sayisal})"
+            )
+            self.olay_gunlugune_ekle(f"Karar motoru çıktısı: {operasyon_mesaji}")
+            self.olay_gunlugune_ekle(f"Trend analizi: {trend_metni}")
+            self.olay_gunlugune_ekle(f"Tahmin motoru: {tahmin}")
+            self.olay_gunlugune_ekle(f"Karar güven skoru: %{karar_guveni:.0f}")
+            self.olay_gunlugune_ekle(onerilen_aksiyon)
+
+            if self.simulasyon_modu_acik and self.simulasyon_seviyesi >= 3:
+                self.olay_gunlugune_ekle("!!! KRİTİK SENARYO: Elektronik yükler güvenli moda zorlandı.")
+                self.olay_gunlugune_ekle("!!! KRİTİK SENARYO: Haberleşme yalnızca acil durum telemetrisi ile sınırlandı.")
+
+            if self.simulasyon_modu_acik and self.simulasyon_seviyesi >= 4:
+                self.olay_gunlugune_ekle("!!! AĞIR SENARYO: Adaptif kalkan maksimum koruma konumuna taşındı.")
+                self.olay_gunlugune_ekle("!!! AĞIR SENARYO: Kritik dışı alt sistemler sert şekilde kısıtlandı.")
+
+            if self.simulasyon_modu_acik and self.simulasyon_seviyesi == 5:
+                self.olay_gunlugune_ekle("!!! EKSTREM SENARYO: Görev sürekliliği yerine platformun korunması önceliklendirildi.")
+                self.olay_gunlugune_ekle("!!! EKSTREM SENARYO: Sadece çekirdek sistemler aktif bırakıldı.")
+
+            self.toplam_risk_metin.set(f"Toplam Radyasyon Riski: {toplam_risk_skoru:.2f}")
+            self.risk_seviyesi_metin.set(f"Operasyon Durumu: {risk_aciklamasi} / {risk_seviyesi}")
+            self.trend_metin.set(f"Trend Analizi: {trend_metni}")
+            self.tahmin_metin.set(f"Kısa Vadeli Tahmin: {tahmin}")
+            self.karar_guven_metin.set(f"Karar Güveni: %{karar_guveni:.0f}")
+            self.onerilen_aksiyon_metin.set(onerilen_aksiyon)
+            self.son_guncelleme_metin.set(
+                "Son Güncelleme: " + datetime.now(UTC).strftime("%d.%m.%Y %H:%M:%S UTC")
+            )
+
+            self.alarm_gorselini_guncelle(risk_seviyesi)
+
+            self.kartlar["gunes_patlamasi"].configure(
+                text=f"Risk Skoru: {gunes_patlamasi_skoru:.1f}",
+                bg=kutu_rengi_skor(gunes_patlamasi_skoru, "gunes_patlamasi")
+            )
+            self.kartlar["koronal_kutle_atimi"].configure(
+                text=f"Risk Skoru: {koronal_kutle_atimi_skoru:.1f}",
+                bg=kutu_rengi_skor(koronal_kutle_atimi_skoru, "koronal_kutle_atimi")
+            )
+            self.kartlar["enerjik_parcacik"].configure(
+                text=f"Risk Skoru: {enerjik_parcacik_skoru:.1f}",
+                bg=kutu_rengi_skor(enerjik_parcacik_skoru, "enerjik_parcacik")
+            )
+            self.kartlar["genel"].configure(
+                text=f"Toplam Risk: {toplam_risk_skoru:.1f}",
+                bg=kutu_rengi_skor(toplam_risk_skoru, "genel")
+            )
+            self.kartlar["risk_seviyesi"].configure(
+                text=f"Durum: {risk_seviyesi}\nSeviye: {risk_seviyesi_sayisal}",
+                bg="#ddd6fe" if risk_seviyesi == "NORMAL" else "#fde68a" if risk_seviyesi == "UYARI" else "#fecaca"
+            )
+            self.kartlar["flr_olay"].configure(
+                text=f"Tespit Edilen Olay: {gunes_olay_sayisi}",
+                bg="#bfdbfe"
+            )
+            self.kartlar["cme_olay"].configure(
+                text=f"Tespit Edilen Olay: {cme_olay_sayisi}",
+                bg="#fed7aa"
+            )
+            self.kartlar["sep_olay"].configure(
+                text=f"Tespit Edilen Olay: {sep_olay_sayisi}",
+                bg="#bbf7d0"
+            )
+
+            for alan, deger in uydu_tepki_plani.items():
+                self.tepki_etiketleri[alan].configure(text=deger)
+
+            self.grafigi_guncelle(
+                gunes_patlamasi_skoru,
+                koronal_kutle_atimi_skoru,
+                enerjik_parcacik_skoru,
+                toplam_risk_skoru,
+                risk_seviyesi_sayisal,
+                gunes_olay_sayisi,
+                cme_olay_sayisi,
+                sep_olay_sayisi
+            )
+
+            self.olay_gunlugune_ekle("Kareli sütun grafiği güncellendi.")
+            self.olay_gunlugune_ekle("Üst kartlardaki tüm metrikler güncellendi.")
+            self.olay_gunlugune_ekle("Arayüz başarıyla yenilendi.")
+            self.olay_gunlugune_ekle("-" * 60)
+
+        except Exception as hata:
+            self.olay_gunlugune_ekle(f"HATA: {hata}")
+            messagebox.showerror("Hata", str(hata))
+
+
+def main():
+    kok = tk.Tk()
+    uygulama = RadyasyonArayuzu(kok)
+    kok.mainloop()
+
+
+if __name__ == "__main__":
+    main()
