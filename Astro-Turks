@@ -84,8 +84,10 @@ def koronal_kutle_atimi_skoru_hesapla(koronal_kutle_atimlari: List[Dict[str, Any
                     skor = 9.0
                 elif hiz < 3000:
                     skor = 14.0
+                elif hiz < 4000:
+                    skor = 20.0
                 else:
-                    skor = 18.0
+                    skor = 28.0
 
                 en_yuksek_hiz_skoru = max(en_yuksek_hiz_skoru, skor)
 
@@ -104,7 +106,9 @@ def enerjik_parcacik_skoru_hesapla(enerjik_parcacik_olaylari: List[Dict[str, Any
         if len(cihazlar) >= 2:
             temel_skor += 2.0
         if len(cihazlar) >= 4:
-            temel_skor += 4.0
+            temel_skor += 6.0
+        if len(cihazlar) >= 5:
+            temel_skor += 10.0
 
         toplam_skor += temel_skor
 
@@ -141,66 +145,95 @@ def uydu_tepki_plani_olustur(
     simulasyon_seviyesi: int = 0
 ) -> Dict[str, str]:
 
-    if simulasyon_aktif:
-        if simulasyon_seviyesi == 5:
-            return {
-                "Çalışma Modu": "Tam Acil Koruma Modu",
-                "Haberleşme": "Sadece Kritik Telemetri Paketi",
-                "Yararlı Yük": "Tamamen Kapatıldı",
-                "Bellek Koruması": "Salt-Okunur Çekirdek Koruma",
-                "Kalkan Durumu": "En Yüksek Yerel Koruma",
-                "Güç Yönetimi": "%70 Azaltıldı",
-                "CPU Frekansı": "Ultra Düşük Güç",
-                "Kalkan Açısı": "Tehdit Eksenine Kilitlendi"
-            }
+    if simulasyon_aktif and simulasyon_seviyesi == 5:
+        return {
+            "Çalışma Modu": "Apokaliptik Güvenli Mod",
+            "Haberleşme": "Yalnızca Hayatta Kalma Telemetrisi",
+            "Yararlı Yük": "Tamamen Devre Dışı",
+            "Bellek Koruması": "Çekirdek Sistemler Tam İzolasyon",
+            "Kalkan Durumu": "Maksimum Yerel Koruma + Sabit Kilit",
+            "Güç Yönetimi": "%70 Azaltıldı",
+            "CPU Frekansı": "Hayatta Kalma Modu",
+            "Kalkan Açısı": "Mutlak Koruma Açısı",
+            "OBC Durumu": "Acil Durum Çekirdeği Aktif",
+            "PDU Durumu": "Yalnızca Kritik Hatlar Besleniyor",
+            "PC Durumu": "İzole / Salt Okunur Mod",
+            "Anten Durumu": "Asgari Telemetri Yayını",
+            "Termal Kalkan": "Maksimum Koruma",
+            "Batarya Hattı": "Koruma Limitinde"
+        }
 
-        if simulasyon_seviyesi == 4:
-            return {
-                "Çalışma Modu": "Ağır Güvenli Mod",
-                "Haberleşme": "Sınırlı Acil Durum Telemetrisi",
-                "Yararlı Yük": "Kritik Dışı Tüm Sistemler Kapalı",
-                "Bellek Koruması": "İleri Seviye ECC + İzolasyon",
-                "Kalkan Durumu": "Tam Adaptif Kalkan",
-                "Güç Yönetimi": "%60 Azaltıldı",
-                "CPU Frekansı": "Çok Düşük Güç",
-                "Kalkan Açısı": "Yoğun Tehdit Yönüne Hizalandı"
-            }
+    if simulasyon_aktif and simulasyon_seviyesi == 4:
+        return {
+            "Çalışma Modu": "Aşırı Güvenli Mod",
+            "Haberleşme": "Acil Durum Öncelikli Telemetri",
+            "Yararlı Yük": "Tamamen Devre Dışı",
+            "Bellek Koruması": "Çekirdek Sistemler İzole Edildi",
+            "Kalkan Durumu": "Maksimum Yerel Koruma",
+            "Güç Yönetimi": "%60 Azaltıldı",
+            "CPU Frekansı": "Minimum Güç Modu",
+            "Kalkan Açısı": "Tehdit Yönüne Tam Hizalama",
+            "OBC Durumu": "Koruma Protokolü Aktif",
+            "PDU Durumu": "İkincil Hatlar Kapatıldı",
+            "PC Durumu": "Kısıtlı İşlem Modu",
+            "Anten Durumu": "Düşük Bant Genişliği",
+            "Termal Kalkan": "Tam Açık",
+            "Batarya Hattı": "Koruma Öncelikli"
+        }
 
-        if simulasyon_seviyesi == 3:
-            return {
-                "Çalışma Modu": "Kritik Güvenli Mod",
-                "Haberleşme": "Yalnızca Acil Durum Telemetrisi",
-                "Yararlı Yük": "Tamamen Devre Dışı",
-                "Bellek Koruması": "Çekirdek Sistemler İzole Edildi",
-                "Kalkan Durumu": "Maksimum Yerel Koruma",
-                "Güç Yönetimi": "%55 Azaltıldı",
-                "CPU Frekansı": "Minimum Güç Modu",
-                "Kalkan Açısı": "Tehdit Yönüne Tam Hizalama"
-            }
+    if simulasyon_aktif and simulasyon_seviyesi == 3:
+        return {
+            "Çalışma Modu": "Kritik Güvenli Mod",
+            "Haberleşme": "Yalnızca Acil Durum Telemetrisi",
+            "Yararlı Yük": "Tamamen Devre Dışı",
+            "Bellek Koruması": "Çekirdek Sistemler İzole Edildi",
+            "Kalkan Durumu": "Maksimum Yerel Koruma",
+            "Güç Yönetimi": "%55 Azaltıldı",
+            "CPU Frekansı": "Minimum Güç Modu",
+            "Kalkan Açısı": "Tehdit Yönüne Tam Hizalama",
+            "OBC Durumu": "Kritik Görev Kontrolü",
+            "PDU Durumu": "Güç Önceliklendirme Aktif",
+            "PC Durumu": "Koruma Altında",
+            "Anten Durumu": "Acil Kanal Açık",
+            "Termal Kalkan": "Yüksek Koruma",
+            "Batarya Hattı": "Yük Sınırlandı"
+        }
 
-        if simulasyon_seviyesi == 2:
-            return {
-                "Çalışma Modu": "Koruyucu Operasyon Modu",
-                "Haberleşme": "Azaltılmış Bant Genişliği",
-                "Yararlı Yük": "Kritik Olmayan Alt Sistemler Kapalı",
-                "Bellek Koruması": "Gelişmiş ECC + Yazma Kilidi",
-                "Kalkan Durumu": "Uyarlanabilir Koruma Aktif",
-                "Güç Yönetimi": "%30 Azaltıldı",
-                "CPU Frekansı": "Kısmi Throttle",
-                "Kalkan Açısı": "Tehdit Yönüne Döndürüldü"
-            }
+    if simulasyon_aktif and simulasyon_seviyesi == 2:
+        return {
+            "Çalışma Modu": "Koruyucu Operasyon Modu",
+            "Haberleşme": "Azaltılmış Bant Genişliği",
+            "Yararlı Yük": "Kritik Olmayan Alt Sistemler Kapalı",
+            "Bellek Koruması": "Gelişmiş ECC + Yazma Kilidi",
+            "Kalkan Durumu": "Uyarlanabilir Koruma Aktif",
+            "Güç Yönetimi": "%30 Azaltıldı",
+            "CPU Frekansı": "Kısmi Throttle",
+            "Kalkan Açısı": "Tehdit Yönüne Döndürüldü",
+            "OBC Durumu": "İzlemeli Operasyon",
+            "PDU Durumu": "Kritik Yük Öncelikli",
+            "PC Durumu": "Yavaşlatılmış İşlem",
+            "Anten Durumu": "Kısıtlı Aktarım",
+            "Termal Kalkan": "Aktif",
+            "Batarya Hattı": "Denge Modu"
+        }
 
-        if simulasyon_seviyesi == 1:
-            return {
-                "Çalışma Modu": "Dikkatli Görev Operasyonu",
-                "Haberleşme": "Normal / İzlemeli",
-                "Yararlı Yük": "Tam Kapasite Aktif",
-                "Bellek Koruması": "Standart ECC + Hata İzleme",
-                "Kalkan Durumu": "Hazır Bekleme",
-                "Güç Yönetimi": "%10 Azaltıldı",
-                "CPU Frekansı": "Nominal",
-                "Kalkan Açısı": "Standart Konum"
-            }
+    if simulasyon_aktif and simulasyon_seviyesi == 1:
+        return {
+            "Çalışma Modu": "Dikkatli Görev Operasyonu",
+            "Haberleşme": "Normal / İzlemeli",
+            "Yararlı Yük": "Tam Kapasite Aktif",
+            "Bellek Koruması": "Standart ECC + Hata İzleme",
+            "Kalkan Durumu": "Hazır Bekleme",
+            "Güç Yönetimi": "%10 Azaltıldı",
+            "CPU Frekansı": "Nominal",
+            "Kalkan Açısı": "Standart Konum",
+            "OBC Durumu": "Nominal + İzleme",
+            "PDU Durumu": "Normal Dağıtım",
+            "PC Durumu": "Normal İşlem",
+            "Anten Durumu": "Tam Haberleşme",
+            "Termal Kalkan": "Bekleme",
+            "Batarya Hattı": "Nominal"
+        }
 
     if risk_seviyesi == "NORMAL":
         return {
@@ -211,7 +244,13 @@ def uydu_tepki_plani_olustur(
             "Kalkan Durumu": "Pasif Kalkan Yeterli",
             "Güç Yönetimi": "Nominal Tüketim",
             "CPU Frekansı": "Tam Performans",
-            "Kalkan Açısı": "Standart Konum"
+            "Kalkan Açısı": "Standart Konum",
+            "OBC Durumu": "Nominal",
+            "PDU Durumu": "Tüm Hatlar Aktif",
+            "PC Durumu": "Normal İşlem",
+            "Anten Durumu": "Tam Haberleşme",
+            "Termal Kalkan": "Pasif Koruma",
+            "Batarya Hattı": "Nominal"
         }
     elif risk_seviyesi == "UYARI":
         return {
@@ -222,7 +261,13 @@ def uydu_tepki_plani_olustur(
             "Kalkan Durumu": "Uyarlanabilir Koruma Aktif",
             "Güç Yönetimi": "%25 Azaltıldı",
             "CPU Frekansı": "Kısmi Throttle",
-            "Kalkan Açısı": "Tehdit Yönüne Döndürüldü"
+            "Kalkan Açısı": "Tehdit Yönüne Döndürüldü",
+            "OBC Durumu": "İzleme + Hata Toleransı",
+            "PDU Durumu": "İkincil Hatlar Sınırlı",
+            "PC Durumu": "Koruma Modu",
+            "Anten Durumu": "Kısıtlı Veri Aktarımı",
+            "Termal Kalkan": "Aktif Koruma",
+            "Batarya Hattı": "Tasarruf Modu"
         }
     else:
         return {
@@ -233,26 +278,28 @@ def uydu_tepki_plani_olustur(
             "Kalkan Durumu": "Maksimum Yerel Koruma",
             "Güç Yönetimi": "%40 Azaltıldı",
             "CPU Frekansı": "Düşük Güç Modu",
-            "Kalkan Açısı": "Maksimum Koruma Açısı"
+            "Kalkan Açısı": "Maksimum Koruma Açısı",
+            "OBC Durumu": "Kritik Çekirdek Aktif",
+            "PDU Durumu": "Sadece Kritik Güç Hatları",
+            "PC Durumu": "İzole / Koruma Altında",
+            "Anten Durumu": "Acil Telemetri Kanalı",
+            "Termal Kalkan": "Maksimum Aktif Koruma",
+            "Batarya Hattı": "Koruma Öncelikli Besleme"
         }
 
 
-def onerilen_aksiyon_olustur(
-    risk_seviyesi: str,
-    simulasyon_aktif: bool = False,
-    simulasyon_seviyesi: int = 0
-) -> str:
-    if simulasyon_aktif:
-        if simulasyon_seviyesi == 5:
-            return "Önerilen Aksiyon: Tüm payloadları kapat, sistemi acil korumaya al, sadece kritik telemetriyi açık tut"
-        if simulasyon_seviyesi == 4:
-            return "Önerilen Aksiyon: Kritik dışı sistemleri tamamen kapat, kalkanı maksimum adaptif moda al, güç tüketimini sert düşür"
-        if simulasyon_seviyesi == 3:
-            return "Önerilen Aksiyon: Payload kapat, safe mode'a geç, yalnızca acil telemetriyi açık tut"
-        if simulasyon_seviyesi == 2:
-            return "Önerilen Aksiyon: Güç tüketimini düşür, bant genişliğini azalt, kritik olmayan sistemleri kapat"
-        if simulasyon_seviyesi == 1:
-            return "Önerilen Aksiyon: İzlemeyi artır, sistemleri hazır beklemede tut, koruma prosedürlerini hazırlıklı tut"
+def onerilen_aksiyon_olustur(risk_seviyesi: str, simulasyon_aktif: bool = False, simulasyon_seviyesi: int = 0) -> str:
+    if simulasyon_aktif and simulasyon_seviyesi == 5:
+        return "Önerilen Aksiyon: Tüm yükleri kapat, hayatta kalma moduna geç, yalnızca çekirdek telemetriyi koru"
+
+    if simulasyon_aktif and simulasyon_seviyesi == 4:
+        return "Önerilen Aksiyon: Payload kapat, safe mode'a geç, yalnızca acil telemetriyi açık tut"
+
+    if simulasyon_aktif and simulasyon_seviyesi == 3:
+        return "Önerilen Aksiyon: Payload kapat, safe mode'a geç, yalnızca acil telemetriyi açık tut"
+
+    if simulasyon_aktif and simulasyon_seviyesi == 2:
+        return "Önerilen Aksiyon: Güç tüketimini düşür, bant genişliğini azalt, kritik olmayan sistemleri kapat"
 
     if risk_seviyesi == "NORMAL":
         return "Önerilen Aksiyon: Normal görev operasyonuna devam et"
@@ -306,11 +353,11 @@ def simule_flr_verisi(seviye: int) -> List[Dict[str, Any]]:
         secenekler = ["X2.5", "X4.1", "X6.3", "X9.0"]
         adet = random.randint(3, 6)
     elif seviye == 4:
-        secenekler = ["X8.4", "X10.0", "X12.7", "X15.2"]
-        adet = random.randint(5, 8)
+        secenekler = ["X10.0", "X12.5", "X15.0"]
+        adet = random.randint(4, 7)
     else:
-        secenekler = ["X15.0", "X18.5", "X22.0", "X28.0"]
-        adet = random.randint(7, 10)
+        secenekler = ["X20.0", "X25.0", "X30.0"]
+        adet = random.randint(6, 10)
 
     return [{"classType": random.choice(secenekler)} for _ in range(adet)]
 
@@ -326,10 +373,10 @@ def simule_cme_verisi(seviye: int) -> List[Dict[str, Any]]:
         hiz_araligi = (1800, 2800)
         adet = random.randint(3, 5)
     elif seviye == 4:
-        hiz_araligi = (2800, 3800)
+        hiz_araligi = (2500, 3500)
         adet = random.randint(4, 6)
     else:
-        hiz_araligi = (3800, 5000)
+        hiz_araligi = (3500, 5000)
         adet = random.randint(5, 8)
 
     veriler = []
@@ -372,18 +419,21 @@ def simule_storm_senaryosu(seviye: int) -> Dict[str, Any]:
     cme = simule_cme_verisi(seviye)
     sep = simule_sep_verisi(seviye)
 
-    senaryo_haritasi = {
-        1: ("LEVEL 1 STORM", "Hafif-orta uzay hava durumu bozulması"),
-        2: ("LEVEL 2 STORM", "Yüksek radyasyon ve operasyonel kısıtlama riski"),
-        3: ("LEVEL 3 STORM", "Kritik güneş fırtınası / görev güvenliği tehdidi"),
-        4: ("LEVEL 4 STORM", "Ağır radyasyon baskısı / geniş sistem koruması gerekli"),
-        5: ("LEVEL 5 STORM", "Aşırı güneş fırtınası / görev sürekliliği ciddi tehlikede"),
-    }
-
-    senaryo_adi, aciklama = senaryo_haritasi.get(
-        seviye,
-        ("LEVEL 1 STORM", "Hafif-orta uzay hava durumu bozulması")
-    )
+    if seviye == 1:
+        senaryo_adi = "LEVEL 1 STORM"
+        aciklama = "Hafif-orta uzay hava durumu bozulması"
+    elif seviye == 2:
+        senaryo_adi = "LEVEL 2 STORM"
+        aciklama = "Yüksek radyasyon ve operasyonel kısıtlama riski"
+    elif seviye == 3:
+        senaryo_adi = "LEVEL 3 STORM"
+        aciklama = "Kritik güneş fırtınası / görev güvenliği tehdidi"
+    elif seviye == 4:
+        senaryo_adi = "LEVEL 4 EXTREME STORM"
+        aciklama = "Uydu sistemleri ciddi risk altında"
+    else:
+        senaryo_adi = "LEVEL 5 APOCALYPSE STORM"
+        aciklama = "Tüm elektronik sistemler için kritik tehdit"
 
     return {
         "seviye": seviye,
@@ -403,14 +453,10 @@ def kisa_vadeli_tahmin_yap(risk_gecmisi: List[float]) -> str:
     onceki = risk_gecmisi[-3]
     fark = son - onceki
 
-    if fark > 20:
-        return "Risk çok hızlı artıyor"
-    elif fark > 8:
+    if fark > 8:
         return "Risk hızla artıyor"
     elif fark > 2:
         return "Risk artış eğiliminde"
-    elif fark < -20:
-        return "Risk çok hızlı düşüyor"
     elif fark < -8:
         return "Risk hızla düşüyor"
     elif fark < -2:
@@ -419,10 +465,10 @@ def kisa_vadeli_tahmin_yap(risk_gecmisi: List[float]) -> str:
 
 
 def karar_guveni_hesapla(toplam_risk: float, simulasyon_aktif: bool) -> float:
-    temel = min(94.0, 45.0 + toplam_risk * 1.2)
+    temel = min(92.0, 45.0 + toplam_risk * 1.2)
     if simulasyon_aktif:
         temel -= 6.0
-    return max(35.0, min(97.0, temel))
+    return max(35.0, min(95.0, temel))
 
 
 class RadyasyonArayuzu:
@@ -460,6 +506,7 @@ class RadyasyonArayuzu:
         self.simulasyon_modu_acik = False
         self.yenileme_araligi_ms = 10000
         self.simulasyon_seviyesi = 1
+        self.maksimum_simulasyon_seviyesi = 5
         self.alarm_durumu_acik = False
 
         self._arayuzu_kur()
@@ -479,18 +526,18 @@ class RadyasyonArayuzu:
             bg="#1e293b",
             bd=0,
             highlightthickness=0,
-            padx=6,
-            pady=6
+            padx=8,
+            pady=8
         )
 
         baslik_etiketi = tk.Label(
             dis_cerceve,
             text=baslik,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 9, "bold"),
             bg="#1e293b",
             fg="white",
             justify="left",
-            wraplength=185,
+            wraplength=200,
             anchor="w"
         )
         baslik_etiketi.pack(anchor="w", fill="x")
@@ -498,21 +545,21 @@ class RadyasyonArayuzu:
         deger_etiketi = tk.Label(
             dis_cerceve,
             text="-",
-            font=("Arial", 9, "bold"),
+            font=("Arial", 16, "bold"),
             bg="#334155",
             fg="black",
             width=20,
             height=4,
             justify="center",
-            wraplength=185
+            wraplength=200
         )
-        deger_etiketi.pack(fill="both", expand=True, pady=(6, 0))
+        deger_etiketi.pack(fill="both", expand=True, pady=(8, 0))
 
         return dis_cerceve, deger_etiketi
 
     def _arayuzu_kur(self):
         ana = tk.Frame(self.pencere, bg="#0f172a")
-        ana.pack(fill="both", expand=True, padx=10, pady=10)
+        ana.pack(fill="both", expand=True, padx=14, pady=14)
         self.ana_panel = ana
 
         ana.grid_columnconfigure(0, weight=3)
@@ -521,30 +568,30 @@ class RadyasyonArayuzu:
         ana.grid_rowconfigure(2, weight=2)
         ana.grid_rowconfigure(3, weight=1)
 
-        ust = tk.Frame(ana, bg="#1e293b", padx=8, pady=8)
-        ust.grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
+        ust = tk.Frame(ana, bg="#1e293b", padx=10, pady=10)
+        ust.grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0, 12))
         self.ust_panel = ust
 
         tk.Label(
             ust,
             text="ASTRO TURKS | Adaptif Uydu Radyasyon Karar Paneli",
-            font=("Arial", 8, "bold"),
+            font=("Arial", 9, "bold"),
             bg="#1e293b",
             fg="white",
             anchor="w",
             justify="left",
-            wraplength=300
-        ).grid(row=0, column=0, sticky="w", padx=(0, 8))
+            wraplength=360
+        ).grid(row=0, column=0, sticky="w", padx=(0, 10))
 
         tk.Label(
             ust,
             text=PROJE_ALT_BASLIK,
-            font=("Arial", 6),
+            font=("Arial", 5),
             bg="#1e293b",
             fg="#93c5fd",
             anchor="w",
             justify="left",
-            wraplength=300
+            wraplength=360
         ).grid(row=1, column=0, sticky="w")
 
         tk.Label(
@@ -553,7 +600,7 @@ class RadyasyonArayuzu:
             font=("Arial", 6),
             bg="#1e293b",
             fg="#cbd5e1"
-        ).grid(row=2, column=0, sticky="w", pady=(3, 0))
+        ).grid(row=2, column=0, sticky="w", pady=(4, 0))
 
         tk.Label(
             ust,
@@ -561,7 +608,7 @@ class RadyasyonArayuzu:
             font=("Arial", 7, "bold"),
             bg="#1e293b",
             fg="#e2e8f0"
-        ).grid(row=0, column=1, sticky="w", padx=8)
+        ).grid(row=0, column=1, sticky="w", padx=12)
 
         tk.Label(
             ust,
@@ -569,109 +616,109 @@ class RadyasyonArayuzu:
             font=("Arial", 7, "bold"),
             bg="#1e293b",
             fg="#e2e8f0"
-        ).grid(row=1, column=1, sticky="w", padx=8)
+        ).grid(row=1, column=1, sticky="w", padx=12)
 
         tk.Label(
             ust,
             textvariable=self.trend_metin,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#1e293b",
             fg="#a7f3d0"
-        ).grid(row=0, column=2, sticky="w", padx=8)
+        ).grid(row=0, column=2, sticky="w", padx=12)
 
         tk.Label(
             ust,
             textvariable=self.son_guncelleme_metin,
-            font=("Arial", 7),
+            font=("Arial", 6),
             bg="#1e293b",
             fg="#cbd5e1"
-        ).grid(row=1, column=2, sticky="w", padx=8)
+        ).grid(row=1, column=2, sticky="w", padx=12)
 
         tk.Label(
             ust,
             textvariable=self.karar_motoru_metin,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#1e293b",
             fg="#fbbf24"
-        ).grid(row=2, column=1, sticky="w", padx=8)
+        ).grid(row=2, column=1, sticky="w", padx=12)
 
         tk.Label(
             ust,
             textvariable=self.simulasyon_seviyesi_metin,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#1e293b",
             fg="#fca5a5"
-        ).grid(row=2, column=2, sticky="w", padx=8)
+        ).grid(row=2, column=2, sticky="w", padx=12)
 
         tk.Label(
             ust,
             text=AKIS_METNI,
-            font=("Arial", 7),
+            font=("Arial", 5),
             bg="#1e293b",
             fg="#94a3b8",
-            wraplength=170,
+            wraplength=210,
             justify="left"
-        ).grid(row=0, column=3, rowspan=3, sticky="w", padx=8)
+        ).grid(row=0, column=3, rowspan=3, sticky="w", padx=12)
 
         yenile_dugmesi = tk.Button(
             ust,
             text="Verileri Yenile",
-            font=("Arial", 8, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#e5e7eb",
             fg="black",
             relief="flat",
-            padx=8,
-            pady=5,
+            padx=10,
+            pady=6,
             command=self.verileri_yenile
         )
-        yenile_dugmesi.grid(row=0, column=4, rowspan=3, sticky="e", padx=(6, 0))
+        yenile_dugmesi.grid(row=0, column=4, rowspan=3, sticky="e", padx=(8, 0))
 
         canli_dugme = tk.Button(
             ust,
             textvariable=self.canli_grafik_metin,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#e5e7eb",
             fg="black",
             relief="flat",
-            padx=8,
-            pady=5,
+            padx=10,
+            pady=6,
             command=self.otomatik_yenilemeyi_degistir
         )
-        canli_dugme.grid(row=0, column=5, rowspan=3, sticky="e", padx=(6, 0))
+        canli_dugme.grid(row=0, column=5, rowspan=3, sticky="e", padx=(8, 0))
 
         simulasyon_dugme = tk.Button(
             ust,
             textvariable=self.simulasyon_metin,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#e5e7eb",
             fg="black",
             relief="flat",
-            padx=8,
-            pady=5,
+            padx=10,
+            pady=6,
             command=self.simulasyon_modunu_degistir
         )
-        simulasyon_dugme.grid(row=0, column=6, rowspan=2, sticky="e", padx=(6, 0))
+        simulasyon_dugme.grid(row=0, column=6, rowspan=2, sticky="e", padx=(8, 0))
 
         self.storm_dugmesi = tk.Button(
             ust,
             text="Storm Seviyesi: L1",
-            font=("Arial", 7, "bold"),
+            font=("Arial", 6, "bold"),
             bg="#dbeafe",
             fg="black",
             relief="flat",
-            padx=8,
-            pady=4,
+            padx=10,
+            pady=5,
             command=self.simulasyon_seviyesi_degistir
         )
-        self.storm_dugmesi.grid(row=2, column=6, sticky="e", padx=(6, 0))
+        self.storm_dugmesi.grid(row=2, column=6, sticky="e", padx=(8, 0))
 
         tk.Label(
             ust,
             textvariable=self.tahmin_metin,
-            font=("Arial", 7, "bold"),
+            font=("Arial", 5, "bold"),
             bg="#1e293b",
             fg="#bfdbfe"
-        ).grid(row=0, column=7, sticky="w", padx=8)
+        ).grid(row=0, column=7, sticky="w", padx=12)
 
         tk.Label(
             ust,
@@ -679,31 +726,31 @@ class RadyasyonArayuzu:
             font=("Arial", 5, "bold"),
             bg="#1e293b",
             fg="#fde68a"
-        ).grid(row=1, column=7, sticky="w", padx=8)
+        ).grid(row=1, column=7, sticky="w", padx=12)
 
         tk.Label(
             ust,
             textvariable=self.onerilen_aksiyon_metin,
-            font=("Arial", 6, "bold"),
+            font=("Arial", 5, "bold"),
             bg="#1e293b",
             fg="#fca5a5",
-            wraplength=180,
+            wraplength=220,
             justify="left",
             anchor="w"
-        ).grid(row=0, column=8, rowspan=3, sticky="w", padx=8)
+        ).grid(row=0, column=8, rowspan=3, sticky="w", padx=12)
 
         self.kaydet_dugmesi = tk.Button(
             ust,
             text="Logları Kaydet",
-            font=("Arial", 7, "bold"),
+            font=("Arial", 5, "bold"),
             bg="#d1fae5",
             fg="black",
             relief="flat",
-            padx=8,
-            pady=4,
+            padx=10,
+            pady=5,
             command=self.loglari_kaydet
         )
-        self.kaydet_dugmesi.grid(row=0, column=9, rowspan=3, sticky="e", padx=(6, 0))
+        self.kaydet_dugmesi.grid(row=0, column=9, rowspan=3, sticky="e", padx=(8, 0))
 
         ust.grid_columnconfigure(0, weight=3)
         ust.grid_columnconfigure(1, weight=1)
@@ -714,7 +761,7 @@ class RadyasyonArayuzu:
         ust.grid_columnconfigure(9, weight=0)
 
         kart_alani = tk.Frame(ana, bg="#0f172a")
-        kart_alani.grid(row=1, column=0, sticky="nsew", padx=(0, 10), pady=(0, 10))
+        kart_alani.grid(row=1, column=0, sticky="nsew", padx=(0, 12), pady=(0, 12))
 
         for col in range(4):
             kart_alani.grid_columnconfigure(col, weight=1)
@@ -727,25 +774,25 @@ class RadyasyonArayuzu:
             ("⚡ Yüksek Enerjili Parçacıklar (SEP)", "enerjik_parcacik"),
             ("📊 Toplam Radyasyon Riski", "genel"),
             ("🧠 Risk Seviyesi", "risk_seviyesi"),
-            ("☀️ Güneş Patlaması Olay Sayısı (FLR)", "flr_olay"),
-            ("🌪️ Koronal Kütle Atımı (CME) Olay Sayısı", "cme_olay"),
-            ("⚡ Yüksek Enerjili Parçacıklar (SEP) Olay Sayısı", "sep_olay"),
+            ("☀️ FLR Olay Sayısı", "flr_olay"),
+            ("🌪️ CME Olay Sayısı", "cme_olay"),
+            ("⚡ SEP Olay Sayısı", "sep_olay"),
         ]
 
         for i, (gorunen_ad, anahtar) in enumerate(kart_basliklari):
             row = i // 4
             col = i % 4
             kart, deger_etiketi = self._kart_olustur(kart_alani, gorunen_ad)
-            kart.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
+            kart.grid(row=row, column=col, sticky="nsew", padx=6, pady=6)
             self.kartlar[anahtar] = deger_etiketi
 
-        tepki_alani = tk.Frame(ana, bg="#1e293b", padx=10, pady=10)
-        tepki_alani.grid(row=1, column=1, sticky="nsew", pady=(0, 10))
+        tepki_alani = tk.Frame(ana, bg="#1e293b", padx=12, pady=12)
+        tepki_alani.grid(row=1, column=1, sticky="nsew", pady=(0, 12))
 
         tk.Label(
             tepki_alani,
             text="Uydu Tepki Planı",
-            font=("Arial", 10, "bold"),
+            font=("Arial", 8, "bold"),
             bg="#1e293b",
             fg="white"
         ).pack(anchor="w", pady=(0, 4))
@@ -753,12 +800,12 @@ class RadyasyonArayuzu:
         tk.Label(
             tepki_alani,
             text="Bu panel yalnızca veri göstermiyor; risk analizine göre uydu davranışını değiştiriyor.",
-            font=("Arial", 7),
+            font=("Arial", 5),
             bg="#1e293b",
             fg="#cbd5e1",
             justify="left",
-            wraplength=320
-        ).pack(anchor="w", pady=(0, 8))
+            wraplength=360
+        ).pack(anchor="w", pady=(0, 10))
 
         for alan in [
             "Çalışma Modu",
@@ -768,41 +815,47 @@ class RadyasyonArayuzu:
             "Kalkan Durumu",
             "Güç Yönetimi",
             "CPU Frekansı",
-            "Kalkan Açısı"
+            "Kalkan Açısı",
+            "OBC Durumu",
+            "PDU Durumu",
+            "PC Durumu",
+            "Anten Durumu",
+            "Termal Kalkan",
+            "Batarya Hattı"
         ]:
             satir = tk.Frame(tepki_alani, bg="#1e293b")
-            satir.pack(fill="x", pady=2)
+            satir.pack(fill="x", pady=3)
 
             tk.Label(
                 satir,
                 text=f"{alan}:",
-                font=("Arial", 8, "bold"),
+                font=("Arial", 6, "bold"),
                 bg="#1e293b",
                 fg="#cbd5e1",
-                width=15,
+                width=16,
                 anchor="w"
             ).pack(side="left")
 
             deger = tk.Label(
                 satir,
                 text="-",
-                font=("Arial", 8),
+                font=("Arial", 6),
                 bg="#1e293b",
                 fg="white",
                 anchor="w",
                 justify="left",
-                wraplength=200
+                wraplength=260
             )
             deger.pack(side="left", fill="x", expand=True)
             self.tepki_etiketleri[alan] = deger
 
-        grafik_cercevesi = tk.Frame(ana, bg="#1e293b", padx=8, pady=8)
-        grafik_cercevesi.grid(row=2, column=0, sticky="nsew", padx=(0, 10), pady=(0, 10))
+        grafik_cercevesi = tk.Frame(ana, bg="#1e293b", padx=10, pady=10)
+        grafik_cercevesi.grid(row=2, column=0, sticky="nsew", padx=(0, 12), pady=(0, 12))
 
         tk.Label(
             grafik_cercevesi,
             text="Kareli Sütun Risk Grafiği",
-            font=("Arial", 10, "bold"),
+            font=("Arial", 8, "bold"),
             bg="#1e293b",
             fg="white"
         ).pack(anchor="w")
@@ -813,15 +866,15 @@ class RadyasyonArayuzu:
         self.eksen.set_facecolor("#0f172a")
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=grafik_cercevesi)
-        self.canvas.get_tk_widget().pack(fill="both", expand=True, pady=(6, 0))
+        self.canvas.get_tk_widget().pack(fill="both", expand=True, pady=(8, 0))
 
-        gunluk_cercevesi = tk.Frame(ana, bg="#1e293b", padx=8, pady=8)
-        gunluk_cercevesi.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(0, 10))
+        gunluk_cercevesi = tk.Frame(ana, bg="#1e293b", padx=10, pady=10)
+        gunluk_cercevesi.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(0, 12))
 
         tk.Label(
             gunluk_cercevesi,
             text="Olay Günlüğü",
-            font=("Arial", 10, "bold"),
+            font=("Arial", 8, "bold"),
             bg="#1e293b",
             fg="white"
         ).pack(anchor="w")
@@ -833,13 +886,13 @@ class RadyasyonArayuzu:
             fg="#e2e8f0",
             insertbackground="white",
             relief="flat",
-            font=("Consolas", 7),
+            font=("Consolas", 6),
             state="disabled"
         )
-        self.olay_gunlugu.pack(fill="both", expand=True, pady=(6, 0))
+        self.olay_gunlugu.pack(fill="both", expand=True, pady=(8, 0))
 
-        alt = tk.Frame(ana, bg="#1e293b", padx=10, pady=8)
-        alt.grid(row=3, column=0, sticky="nsew", padx=(0, 10))
+        alt = tk.Frame(ana, bg="#1e293b", padx=14, pady=10)
+        alt.grid(row=3, column=0, sticky="nsew", padx=(0, 12))
 
         tk.Label(
             alt,
@@ -848,17 +901,17 @@ class RadyasyonArayuzu:
                 "karar motoru risk seviyesini belirler ve uydu için otomatik tepki planı oluşturulur. "
                 "Grafikte ve üst kartlarda tüm temel metrikler birlikte gösterilir."
             ),
-            font=("Arial", 7),
+            font=("Arial", 5),
             bg="#1e293b",
             fg="#cbd5e1",
             justify="left",
-            wraplength=900
+            wraplength=1000
         ).pack(anchor="w")
 
     def simulasyon_seviyesi_degistir(self) -> None:
         self.simulasyon_seviyesi += 1
 
-        if self.simulasyon_seviyesi > 5:
+        if self.simulasyon_seviyesi > self.maksimum_simulasyon_seviyesi:
             self.simulasyon_seviyesi = 1
 
         self.storm_dugmesi.configure(text=f"Storm Seviyesi: L{self.simulasyon_seviyesi}")
@@ -981,11 +1034,11 @@ class RadyasyonArayuzu:
 
         cubuklar = self.eksen.bar(kategoriler, degerler, color=renkler, width=0.62)
 
-        self.eksen.set_title("Uzay Hava Durumu Tabanlı Radyasyon Risk Analizi", color="white", fontsize=11)
-        self.eksen.set_ylabel("Risk Skoru / Olay Sayısı / Seviye", color="white", fontsize=8)
+        self.eksen.set_title("Uzay Hava Durumu Tabanlı Radyasyon Risk Analizi", color="white", fontsize=9)
+        self.eksen.set_ylabel("Risk Skoru / Olay Sayısı / Seviye", color="white", fontsize=7)
 
-        self.eksen.tick_params(axis="x", colors="white", labelrotation=0, labelsize=8)
-        self.eksen.tick_params(axis="y", colors="white", labelsize=8)
+        self.eksen.tick_params(axis="x", colors="white", labelrotation=0, labelsize=6)
+        self.eksen.tick_params(axis="y", colors="white", labelsize=6)
 
         self.eksen.spines["bottom"].set_color("white")
         self.eksen.spines["left"].set_color("white")
@@ -1002,7 +1055,7 @@ class RadyasyonArayuzu:
                 f"{deger:.1f}",
                 ha="center",
                 va="bottom",
-                fontsize=7,
+                fontsize=5,
                 color="white",
                 fontweight="bold"
             )
@@ -1129,17 +1182,9 @@ class RadyasyonArayuzu:
             self.olay_gunlugune_ekle(f"Karar güven skoru: %{karar_guveni:.0f}")
             self.olay_gunlugune_ekle(onerilen_aksiyon)
 
-            if self.simulasyon_modu_acik and self.simulasyon_seviyesi >= 3:
-                self.olay_gunlugune_ekle("!!! KRİTİK SENARYO: Elektronik yükler güvenli moda zorlandı.")
-                self.olay_gunlugune_ekle("!!! KRİTİK SENARYO: Haberleşme yalnızca acil durum telemetrisi ile sınırlandı.")
-
             if self.simulasyon_modu_acik and self.simulasyon_seviyesi >= 4:
-                self.olay_gunlugune_ekle("!!! AĞIR SENARYO: Adaptif kalkan maksimum koruma konumuna taşındı.")
-                self.olay_gunlugune_ekle("!!! AĞIR SENARYO: Kritik dışı alt sistemler sert şekilde kısıtlandı.")
-
-            if self.simulasyon_modu_acik and self.simulasyon_seviyesi == 5:
-                self.olay_gunlugune_ekle("!!! EKSTREM SENARYO: Görev sürekliliği yerine platformun korunması önceliklendirildi.")
-                self.olay_gunlugune_ekle("!!! EKSTREM SENARYO: Sadece çekirdek sistemler aktif bırakıldı.")
+                self.olay_gunlugune_ekle("!!! AŞIRI SENARYO: Tüm görev dışı yükler kapatıldı.")
+                self.olay_gunlugune_ekle("!!! AŞIRI SENARYO: Uydu yalnızca hayatta kalma protokolleriyle çalışıyor.")
 
             self.toplam_risk_metin.set(f"Toplam Radyasyon Riski: {toplam_risk_skoru:.2f}")
             self.risk_seviyesi_metin.set(f"Operasyon Durumu: {risk_aciklamasi} / {risk_seviyesi}")
@@ -1187,7 +1232,16 @@ class RadyasyonArayuzu:
             )
 
             for alan, deger in uydu_tepki_plani.items():
-                self.tepki_etiketleri[alan].configure(text=deger)
+                renk = "white"
+                if risk_seviyesi == "UYARI":
+                    renk = "#fde68a"
+                elif risk_seviyesi == "GÜVENLİ MOD":
+                    renk = "#fca5a5"
+
+                self.tepki_etiketleri[alan].configure(
+                    text=deger,
+                    fg=renk
+                )
 
             self.grafigi_guncelle(
                 gunes_patlamasi_skoru,
@@ -1202,6 +1256,7 @@ class RadyasyonArayuzu:
 
             self.olay_gunlugune_ekle("Kareli sütun grafiği güncellendi.")
             self.olay_gunlugune_ekle("Üst kartlardaki tüm metrikler güncellendi.")
+            self.olay_gunlugune_ekle("Uydu tepki planındaki donanım durumları güncellendi.")
             self.olay_gunlugune_ekle("Arayüz başarıyla yenilendi.")
             self.olay_gunlugune_ekle("-" * 60)
 
