@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-API_ANAHTARI = "1xkM1eCwMelanyaq6CVwblXJD8cMgAiQKHrgFI7y"
+API_ANAHTARI = "NASA DUNKI APISINI GİR"
 TEMEL_URL = "https://api.nasa.gov/DONKI"
 
 PROJE_ALT_BASLIK = "Gerçek zamanlı uzay hava durumu tabanlı adaptif radyasyon koruma sistemi"
