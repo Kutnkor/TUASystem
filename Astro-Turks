@@ -1,3 +1,4 @@
+import os
 import random
 import requests
 from datetime import datetime, timedelta, UTC
@@ -10,7 +11,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-API_ANAHTARI = "NASA DUNKI APISINI GİR"
+API_ANAHTARI = "1xkM1eCwMelanyaq6CVwblXJD8cMgAiQKHrgFI7y"
 TEMEL_URL = "https://api.nasa.gov/DONKI"
 
 PROJE_ALT_BASLIK = "Gerçek zamanlı uzay hava durumu tabanlı adaptif radyasyon koruma sistemi"
@@ -520,6 +521,29 @@ class RadyasyonArayuzu:
         self.olay_gunlugu.see("end")
         self.olay_gunlugu.configure(state="disabled")
 
+    def _guvenli_kayit_klasoru_bul(self) -> str:
+        ev_klasoru = os.path.expanduser("~")
+        aday_klasorler = [
+            os.path.join(ev_klasoru, "Desktop"),
+            os.path.join(ev_klasoru, "Masaüstü"),
+            os.path.join(ev_klasoru, "Documents"),
+            os.path.join(ev_klasoru, "Belgeler"),
+            ev_klasoru
+        ]
+
+        for klasor in aday_klasorler:
+            try:
+                if os.path.isdir(klasor) and os.access(klasor, os.W_OK):
+                    hedef = os.path.join(klasor, "ASTRO_TURKS_VERILER")
+                    os.makedirs(hedef, exist_ok=True)
+                    return hedef
+            except OSError:
+                continue
+
+        hedef = os.path.join(os.getcwd(), "ASTRO_TURKS_VERILER")
+        os.makedirs(hedef, exist_ok=True)
+        return hedef
+
     def _kart_olustur(self, ebeveyn, baslik: str):
         dis_cerceve = tk.Frame(
             ebeveyn,
@@ -741,7 +765,7 @@ class RadyasyonArayuzu:
 
         self.kaydet_dugmesi = tk.Button(
             ust,
-            text="Logları Kaydet",
+            text="Verileri Kaydet",
             font=("Arial", 5, "bold"),
             bg="#d1fae5",
             fg="black",
@@ -962,12 +986,14 @@ class RadyasyonArayuzu:
     def loglari_kaydet(self) -> None:
         try:
             zaman_damgasi = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-            dosya_adi = f"astro_turks_log_{zaman_damgasi}.txt"
+            kayit_klasoru = self._guvenli_kayit_klasoru_bul()
+            dosya_adi = f"veriler_{zaman_damgasi}.txt"
+            tam_yol = os.path.join(kayit_klasoru, dosya_adi)
 
             icerik = self.olay_gunlugu.get("1.0", "end-1c")
 
-            with open(dosya_adi, "w", encoding="utf-8") as dosya:
-                dosya.write("ASTRO TURKS | Görev Logu\n")
+            with open(tam_yol, "w", encoding="utf-8") as dosya:
+                dosya.write("ASTRO TURKS | VERİ KAYDI\n")
                 dosya.write("=" * 60 + "\n")
                 dosya.write(self.toplam_risk_metin.get() + "\n")
                 dosya.write(self.risk_seviyesi_metin.get() + "\n")
@@ -979,12 +1005,12 @@ class RadyasyonArayuzu:
                 dosya.write("=" * 60 + "\n\n")
                 dosya.write(icerik)
 
-            self.olay_gunlugune_ekle(f"Log dosyası kaydedildi: {dosya_adi}")
-            messagebox.showinfo("Başarılı", f"Log dosyası kaydedildi:\n{dosya_adi}")
+            self.olay_gunlugune_ekle(f"Veriler kaydedildi: {tam_yol}")
+            messagebox.showinfo("Başarılı", f"Veriler kaydedildi:\n{tam_yol}")
 
         except Exception as hata:
-            self.olay_gunlugune_ekle(f"Log kaydetme hatası: {hata}")
-            messagebox.showerror("Hata", f"Log kaydedilemedi:\n{hata}")
+            self.olay_gunlugune_ekle(f"Veri kaydetme hatası: {hata}")
+            messagebox.showerror("Hata", f"Veriler kaydedilemedi:\n{hata}")
 
     def grafigi_guncelle(
         self,
