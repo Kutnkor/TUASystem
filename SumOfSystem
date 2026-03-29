@@ -1,0 +1,41 @@
+ASTROSHIELD
+3 Katmanlı Akıllı Radyasyon Koruma Sistemi
+Proje Özeti
+
+Uzaydaki radyasyon, uyduların kritik sistemlerinde veri bozulmasına, donanım arızalarına ve görev kayıplarına yol açan önemli bir tehdittir. Özellikle uçuş bilgisayarı (OBC), güç dağıtım ünitesi (PDU) ve voltaj kontrol sistemi (PC) bu etkilerden doğrudan zarar görür. Bu proje, tüm uyduyu korumak yerine yalnızca bu kritik bileşenleri hedef alan akıllı ve adaptif bir radyasyon koruma sistemi sunar.
+
+Radyasyon Kalkanı (3 Katmanlı Yapı)
+
+Sistem, fiziksel ve yazılımsal olarak entegre çalışan 3 katmanlı bir kalkan mimarisi kullanır. İlk katmanda radyasyonu zayıflatan pasif bir fiziksel kalkan bulunur. İkinci katmanda zararlı parçacıkları emerek etkisini azaltan bir yapı yer alır. Üçüncü katmanda ise sensör verileri ve uzay hava durumu analizine dayalı çalışan akıllı kontrol sistemi devreye girer. Bu sayede sistem yalnızca riskli anlarda aktif hale gelerek hem güvenliği artırır hem de enerji verimliliğini korur.
+
+Akıllı Sistem (Karar Motoru)
+
+Sistem, NASA DONKI verilerini kullanarak güneş patlamaları (FLR), koronal kütle atımları (CME) ve enerjik parçacık olaylarını (SEP) analiz eder. Bununla birlikte yalnızca tek bir veri türüne bağlı kalmaz; zaman serisi verileri, olay yoğunluğu, radyasyon artış hızı ve geçmiş olaylarla karşılaştırmalar yaparak çok katmanlı bir risk analizi gerçekleştirir.
+
+Elde edilen verilerden bir risk skoru oluşturulur ve bu skor doğrultusunda sistem, olası tehlikeyi önceden tahmin ederek proaktif kararlar alır. Böylece sistem sadece tepki veren değil, aynı zamanda öngörü yapabilen bir yapı haline gelir.
+
+Akış şu şekilde ilerler:
+NASA verisi → çoklu veri analizi → risk skoru → karar motoru → uydu tepkisi → radyasyon azaltımı
+
+Uydu Tepki Mekanizması
+
+Sistem, belirlenen risk seviyesine göre uydu davranışını dinamik olarak değiştirir. Düşük riskte normal operasyon devam ederken, orta riskte koruyucu mod devreye girer. Yüksek risk durumunda ise uydu otomatik olarak güvenli moda geçer.
+
+Bu süreçte sistem:
+
+Güç tüketimini optimize eder
+Kritik olmayan sistemleri devre dışı bırakır
+Bellek ve veri güvenliğini artırır
+Haberleşmeyi kontrol altına alır
+Radyasyon kalkanını aktif hale getirir
+Simülasyon ve Veri İşleme
+
+Proje hem gerçek zamanlı verilerle hem de oluşturulan senaryolarla çalışır. Farklı seviyelerde güneş fırtınası ve radyasyon artışı senaryoları simüle edilerek sistemin tepkileri test edilir. Aynı zamanda sistem, farklı veri setlerini analiz ederek kendini sürekli geliştirebilecek şekilde tasarlanmıştır.
+
+Amaç
+
+Bu projenin amacı, uydu sistemlerini daha verimli ve akıllı bir şekilde koruyarak görev sürekliliğini artırmak, enerji tüketimini optimize etmek ve uzay görevlerinde güvenilirliği en üst seviyeye çıkarmaktır.
+
+Yenilik
+
+Bu proje, klasik radyasyon koruma yöntemlerinden farklı olarak yalnızca fiziksel koruma sağlamaz; aynı zamanda veri analizi, adaptif karar mekanizması ve hedef odaklı koruma yaklaşımı ile daha gelişmiş bir çözüm sunar. Kritik sistemlere odaklanması ve çok katmanlı akıllı yapısı sayesinde daha hafif, daha verimli ve daha etkili bir koruma sağlar.
